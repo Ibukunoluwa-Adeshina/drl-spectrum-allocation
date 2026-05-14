@@ -12,6 +12,12 @@ class SpectrumEnv(gym.Env):
         self.num_channels = 3
         self.num_users = 5
 
+        # QoS priorities
+        self.user_priorities = {
+            "high" : 2,
+            "low" : 1
+        }
+
         # action space
         self.action_space = spaces.Discrete(
             self.num_channels
@@ -56,12 +62,25 @@ class SpectrumEnv(gym.Env):
             dtype=np.float32
         )
 
-        # other users choose channels randomly
+        # dynamic traffic load
+        active_users = np.random.randint(
+            1,
+            self.num_users
+        )
+        # active users choose channels
         other_users = np.random.randint(
             0,
             self.num_channels,
-            size=self.num_users - 1
+            size=active_users
         )
+
+        # randomly assign traffic type
+        traffic_type = np.random.choice(
+            ["high", "low"]
+        )
+        priority_weight = self.user_priorities[
+            traffic_type
+        ]
 
         # occupancy count
         for user_channel in other_users:
@@ -89,7 +108,7 @@ class SpectrumEnv(gym.Env):
             throughput * 5
         ) + (
             sinr * 2
-        )
+        ) * priority_weight
 
         if occupancy >= 3:
             reward -= 10
@@ -97,10 +116,18 @@ class SpectrumEnv(gym.Env):
         # episode termination
         done = self.current_step >= self.max_steps
 
+
+        
         return (
             self.state,
             reward,
             done,
             False,
-            {}
+            {
+                "throughput": throughput,
+                "sinr": sinr,
+                "occupancy": occupancy,
+                "traffic_type": traffic_type,
+                "priority_weight": priority_weight
+            }
         )
