@@ -2,6 +2,7 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 
+
 class SpectrumEnv(gym.Env):
 
     def __init__(self):
@@ -14,9 +15,19 @@ class SpectrumEnv(gym.Env):
 
         # QoS priorities
         self.user_priorities = {
-            "high" : 2,
-            "low" : 1
+            "high": 2,
+            "low": 1
         }
+
+        # user mobility positions
+        self.user_positions = np.random.uniform(
+            0,
+            100,
+            self.num_users
+        )
+
+        # base station position
+        self.base_station = 50
 
         # action space
         self.action_space = spaces.Discrete(
@@ -39,6 +50,24 @@ class SpectrumEnv(gym.Env):
 
         self.reset()
 
+    def move_users(self):
+
+        # random movement
+        movement = np.random.uniform(
+            -5,
+            5,
+            self.num_users
+        )
+
+        self.user_positions += movement
+
+        # keep users within coverage area
+        self.user_positions = np.clip(
+            self.user_positions,
+            0,
+            100
+        )
+
     def reset(self, seed=None, options=None):
 
         super().reset(seed=seed)
@@ -48,6 +77,13 @@ class SpectrumEnv(gym.Env):
             dtype=np.float32
         )
 
+        # reset user positions
+        self.user_positions = np.random.uniform(
+            0,
+            100,
+            self.num_users
+        )
+
         self.current_step = 0
 
         return self.state, {}
@@ -55,6 +91,9 @@ class SpectrumEnv(gym.Env):
     def step(self, action):
 
         self.current_step += 1
+
+        # move users
+        self.move_users()
 
         # reset occupancy
         self.state = np.zeros(
@@ -67,6 +106,7 @@ class SpectrumEnv(gym.Env):
             1,
             self.num_users
         )
+
         # active users choose channels
         other_users = np.random.randint(
             0,
@@ -78,6 +118,7 @@ class SpectrumEnv(gym.Env):
         traffic_type = np.random.choice(
             ["high", "low"]
         )
+
         priority_weight = self.user_priorities[
             traffic_type
         ]
@@ -94,30 +135,38 @@ class SpectrumEnv(gym.Env):
         # throughput
         throughput = 1 / occupancy
 
-        # SINR
-        signal_power = 1.0
+        # distance-based signal power
+        distance = abs(
+            self.user_positions[0]
+            - self.base_station
+        )
+
+        signal_power = 1 / (
+            1 + distance / 50
+        )
+
+        # interference and noise
         interference_power = occupancy - 1
         noise = 0.1
 
+        # SINR
         sinr = signal_power / (
             interference_power + noise
         )
 
-        # reward
+        # QoS-aware reward
         reward = (
             throughput * 5
-        ) + (
-            sinr * 2
+            + sinr * 2
         ) * priority_weight
 
+        # congestion penalty
         if occupancy >= 3:
             reward -= 10
 
         # episode termination
         done = self.current_step >= self.max_steps
 
-
-        
         return (
             self.state,
             reward,
@@ -128,6 +177,7 @@ class SpectrumEnv(gym.Env):
                 "sinr": sinr,
                 "occupancy": occupancy,
                 "traffic_type": traffic_type,
-                "priority_weight": priority_weight
+                "priority_weight": priority_weight,
+                "distance": distance
             }
         )
