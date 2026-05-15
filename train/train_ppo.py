@@ -21,7 +21,8 @@ env = Monitor(
 model = PPO(
     "MlpPolicy",
     env,
-    verbose=1
+    verbose=1,
+    tensorboard_log="./outputs/logs/ppo/"
 )
 
 # train model
@@ -29,9 +30,12 @@ model.learn(
     total_timesteps=20000
 )
 
+# create models directory
+os.makedirs("models", exist_ok=True)
+
 # save model
 model.save(
-    "results/ppo_spectrum_model"
+    "./models/ppo_model"
 )
 
 print("PPO training complete.")

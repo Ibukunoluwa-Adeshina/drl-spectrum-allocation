@@ -21,7 +21,8 @@ model = DQN(
     buffer_size=10000,
     learning_starts=100,
     batch_size=32,
-    gamma=0.95
+    gamma=0.95,
+    tensorboard_log="./outputs/logs/ppo/"
 )
 
 # train
