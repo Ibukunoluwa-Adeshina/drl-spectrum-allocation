@@ -3,16 +3,13 @@ from stable_baselines3.common.monitor import Monitor
 from env.spectrum_env import SpectrumEnv
 import os
 
-# create results folder
 os.makedirs("results", exist_ok=True)
+os.makedirs("models", exist_ok=True)
+os.makedirs("outputs/logs/dqn", exist_ok=True)
 
-# create environment
 env = SpectrumEnv()
-
-# add monitor wrapper
 env = Monitor(env, filename="results/monitor.csv")
 
-# create DQN model
 model = DQN(
     "MlpPolicy",
     env,
@@ -22,13 +19,10 @@ model = DQN(
     learning_starts=100,
     batch_size=32,
     gamma=0.95,
-    tensorboard_log="./outputs/logs/ppo/"
+    tensorboard_log="./outputs/logs/dqn/"
 )
 
-# train
 model.learn(total_timesteps=20000)
+model.save("./models/dqn_model")
 
-# save model
-model.save("results/dqn_spectrum_model")
-
-print("Training complete.")
+print("DQN training complete.")
